@@ -5,7 +5,7 @@ import { isValidNodeConnectionType } from '@/utils/typeGuards';
 import type { Connection, EdgeProps } from '@vue-flow/core';
 import { BaseEdge, EdgeLabelRenderer } from '@vue-flow/core';
 import { NodeConnectionType } from 'n8n-workflow';
-import { computed, useCssModule, toRef } from 'vue';
+import { computed, ref, toRef, useCssModule, watch } from 'vue';
 import CanvasEdgeToolbar from './CanvasEdgeToolbar.vue';
 import { getEdgeRenderData } from './utils';
 
@@ -33,7 +33,26 @@ const connectionType = computed(() =>
 		: NodeConnectionType.Main,
 );
 
-const renderToolbar = computed(() => props.hovered && !props.readOnly);
+const delayedHovered = ref(props.hovered);
+const delayedHoveredSetTimeoutRef = ref<NodeJS.Timeout | null>(null);
+const delayedHoveredTimeout = 300;
+
+watch(
+	() => props.hovered,
+	(isHovered) => {
+		if (isHovered) {
+			if (delayedHoveredSetTimeoutRef.value) clearTimeout(delayedHoveredSetTimeoutRef.value);
+			delayedHovered.value = true;
+		} else {
+			delayedHoveredSetTimeoutRef.value = setTimeout(() => {
+				delayedHovered.value = false;
+			}, delayedHoveredTimeout);
+		}
+	},
+	{ immediate: true },
+);
+
+const renderToolbar = computed(() => (props.selected || delayedHovered.value) && !props.readOnly);
 
 const isMainConnection = computed(() => data.value.source.type === NodeConnectionType.Main);
 
@@ -70,9 +89,13 @@ const edgeLabelStyle = computed(() => ({
 	color: edgeColor.value,
 }));
 
+const isConnectorStraight = computed(() => renderData.value.isConnectorStraight);
+
 const edgeToolbarStyle = computed(() => {
+	const translateY = isConnectorStraight.value ? '-150%' : '-50%';
+
 	return {
-		transform: `translate(-50%, -50%) translate(${labelPosition.value[0]}px,${labelPosition.value[1]}px)`,
+		transform: `translate(-50%, ${translateY}) translate(${labelPosition.value[0]}px, ${labelPosition.value[1]}px)`,
 		...(props.hovered ? { zIndex: 1 } : {}),
 	};
 });
