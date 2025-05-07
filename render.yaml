@@ -1,0 +1,20 @@
+services:
+  - type: web
+    name: n8n
+    env: node
+
+    # Build only the CLI package (saves lots of RAM)
+    buildCommand: |
+      npm i -g pnpm@8
+      pnpm install --frozen-lockfile
+      pnpm --filter "@n8n/cli..." run build
+      pnpm prune --prod
+
+    # Start the CLI
+    startCommand: node packages/cli/bin/n8n start
+
+    # Mount (or create) the disk where your workflows live
+    disk:
+      name: n8n-data
+      mountPath: /data
+      sizeGB: 1
